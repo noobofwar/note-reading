@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ฝึกอ่านโน้ตดนตรี</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=Noto+Music&display=swap">
+<style>
+/* Layout: one practice desk — settings strip, a wide engraved staff, a row of piano-key answer buttons, then progress and per-note weak spots */
+:root {
+  --bg: #e9edf2;
+  --paper: #fbfcfd;
+  --ink: #18202e;
+  --muted: #5d6879;
+  --line: #cfd6df;
+  --accent: #d99a12;
+  --accent-soft: rgba(217, 154, 18, .16);
+  --ok: #1d8556;
+  --bad: #c43a2f;
+  --key: #ffffff;
+  --key-edge: #b9c2ce;
+  --key-shadow: #9aa4b2;
+  --space: #2c68ad;
+  --font-display: "Bai Jamjuree", "IBM Plex Sans Thai", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans Thai", "Leelawadee UI", "Tahoma", system-ui, sans-serif;
+  --font-music: "Noto Music", "Segoe UI Symbol", "Bravura", serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11151c; --paper: #1a2029; --ink: #e6eaf1; --muted: #9aa5b5; --line: #2e3744;
+    --accent: #f0b43a; --accent-soft: rgba(240, 180, 58, .16); --ok: #3fbf83; --bad: #ef6a5e;
+    --key: #252c37; --key-edge: #3a4452; --key-shadow: #0a0d12; --space: #7fb2ec;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11151c; --paper: #1a2029; --ink: #e6eaf1; --muted: #9aa5b5; --line: #2e3744;
+  --accent: #f0b43a; --accent-soft: rgba(240, 180, 58, .16); --ok: #3fbf83; --bad: #ef6a5e;
+  --key: #252c37; --key-edge: #3a4452; --key-shadow: #0a0d12; --space: #7fb2ec;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 40px;
+}
+.wrap { max-width: 860px; margin: 0 auto; display: grid; gap: 18px; }
+header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(24px, 4vw, 32px); line-height: 1.15; margin: 0; text-wrap: balance; }
+.sub { color: var(--muted); margin: 4px 0 0; }
+
+.settings { display: flex; flex-wrap: wrap; gap: 10px 18px; }
+.group { display: grid; gap: 4px; }
+.group-label { font-size: 12px; color: var(--muted); letter-spacing: .04em; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; background: var(--paper); }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg label { padding: 6px 12px; cursor: pointer; font-size: 14px; white-space: nowrap; border-left: 1px solid var(--line); user-select: none; }
+.seg label:first-of-type { border-left: 0; }
+.seg input:checked + label { background: var(--ink); color: var(--paper); }
+.seg input:focus-visible + label { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.desk { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 14px 14px 18px; display: grid; gap: 14px; }
+.prompt { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; font-size: 14px; color: var(--muted); }
+.prompt strong { color: var(--ink); font-family: var(--font-display); font-weight: 600; font-size: 16px; }
+#staff { width: 100%; height: auto; display: block; color: var(--ink); }
+.staff-svg .staff-line { stroke: currentColor; stroke-width: 1.1; }
+.staff-svg .bar { stroke: currentColor; stroke-width: 1.4; }
+.staff-svg .clef { fill: currentColor; font-family: var(--font-music); }
+.staff-svg .ledger { stroke: currentColor; stroke-width: 1.3; }
+.staff-svg .note { fill: currentColor; }
+.staff-svg .stem { stroke: currentColor; stroke-width: 1.3; }
+.staff-svg .cur-bg { fill: var(--accent-soft); }
+.staff-svg .cur .note, .staff-svg .cur .stem, .staff-svg .cur .ledger { color: var(--accent); fill: var(--accent); stroke: var(--accent); }
+.staff-svg .cur .stem, .staff-svg .cur .ledger { fill: none; }
+.staff-svg .ok { color: var(--ok); }
+.staff-svg .bad { color: var(--bad); }
+.staff-svg .ok .note, .staff-svg .bad .note { fill: currentColor; }
+.staff-svg .ok .stem, .staff-svg .bad .stem, .staff-svg .ok .ledger, .staff-svg .bad .ledger { stroke: currentColor; }
+.staff-svg .lbl { font-family: var(--font-display); font-weight: 600; font-size: 13px; text-anchor: middle; fill: currentColor; }
+.staff-svg .arrow { fill: var(--accent); }
+
+.mic { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: grid; gap: 12px; }
+.mic-row { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-end; }
+.btn { appearance: none; border: 1px solid var(--ink); background: var(--ink); color: var(--paper); font: inherit; font-weight: 600; border-radius: 9px; padding: 7px 16px; cursor: pointer; }
+.btn.on { background: transparent; color: var(--ink); }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mic select { font: inherit; font-size: 14px; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 9px; padding: 6px 8px; max-width: 100%; min-width: 0; }
+.field { display: grid; gap: 4px; min-width: 0; flex: 1 1 220px; }
+.mic-test { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 16px; align-items: center; }
+.meter { height: 12px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); overflow: hidden; }
+.meter-fill { height: 100%; width: 0; background: var(--muted); transition: width .05s linear; }
+.meter-fill.live { background: var(--ok); }
+.heard { font-family: var(--font-display); font-weight: 700; font-size: 26px; min-width: 7ch; text-align: right; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.heard small { font-size: 14px; color: var(--muted); font-weight: 500; }
+.mic-sub { grid-column: 1 / -1; font-size: 14px; color: var(--muted); margin: 0; }
+.mic-sub.ok { color: var(--ok); font-weight: 600; }
+.mic-sub.bad { color: var(--bad); font-weight: 600; }
+.pill { font-size: 13px; border-radius: 999px; padding: 2px 10px; border: 1px solid var(--line); color: var(--muted); }
+.pill.live { border-color: var(--ok); color: var(--ok); }
+.pill.err { border-color: var(--bad); color: var(--bad); }
+.seg input:disabled + label { opacity: .45; cursor: not-allowed; }
+.staff-svg .space-lbl { font-family: var(--font-display); font-weight: 600; font-size: 11px; text-anchor: middle; fill: var(--space); }
+.keys { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.key {
+  appearance: none; border: 1px solid var(--key-edge); border-bottom-width: 5px; border-radius: 0 0 10px 10px;
+  background: var(--key); color: var(--ink); font: inherit; cursor: pointer; min-height: 112px;
+  display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 0; padding: 8px 2px 10px;
+  box-shadow: 0 2px 0 var(--key-shadow); transition: transform .06s, background .15s, border-color .15s;
+}
+.key:active { transform: translateY(3px); border-bottom-width: 2px; }
+.key:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.key .big { font-family: var(--font-display); font-weight: 700; font-size: clamp(18px, 4.4vw, 26px); line-height: 1.1; }
+.key .small { font-size: 13px; color: var(--muted); }
+.key kbd { font-family: var(--font-body); font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; margin-top: 6px; }
+.key.flash-ok { background: var(--ok); border-color: var(--ok); color: #fff; }
+.key.flash-bad { background: var(--bad); border-color: var(--bad); color: #fff; }
+.key.flash-ok .small, .key.flash-bad .small, .key.flash-ok kbd, .key.flash-bad kbd { color: #fff; border-color: rgba(255,255,255,.5); }
+.hint { font-size: 13px; color: var(--muted); margin: 0; }
+
+.stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.stat { background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; min-width: 0; }
+.stat .v { font-family: var(--font-display); font-weight: 700; font-size: 22px; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.stat .k { font-size: 12px; color: var(--muted); }
+.stat .v.ok { color: var(--ok); } .stat .v.bad { color: var(--bad); }
+
+.weak { display: grid; gap: 8px; }
+.weak-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+h2 { font-family: var(--font-display); font-size: 17px; font-weight: 600; margin: 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; font-size: 13px; background: var(--paper); font-variant-numeric: tabular-nums; display: inline-flex; gap: 6px; align-items: baseline; }
+.chip b { font-family: var(--font-display); font-weight: 600; }
+.chip .pct { color: var(--muted); font-size: 12px; }
+.chip.good { border-color: var(--ok); }
+.chip.good .pct { color: var(--ok); }
+.chip.poor { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 10%, var(--paper)); }
+.chip.poor .pct { color: var(--bad); }
+button.chip { font: inherit; font-size: 13px; color: var(--ink); cursor: pointer; }
+button.chip:hover { border-color: var(--muted); }
+button.chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.chip.off { opacity: .45; border-style: dashed; background: transparent; }
+.chip.off b { text-decoration: line-through; }
+.chip-label { font-family: var(--font-display); font-weight: 600; font-size: 13px; padding: 3px 4px 3px 0; align-self: center; }
+.chip-label:not(:first-child) { margin-left: 8px; }
+.presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.hint.warn { color: var(--bad); }
+.link-btn { appearance: none; background: none; border: 1px solid var(--line); color: var(--muted); border-radius: 8px; padding: 4px 10px; font: inherit; font-size: 13px; cursor: pointer; }
+.link-btn:hover { color: var(--ink); border-color: var(--muted); }
+.link-btn:focus-visible { outline: 2px solid var(--accent); }
+
+@media (max-width: 560px) {
+  .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .key { min-height: 96px; }
+  .key kbd { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .key { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>ฝึกอ่านโน้ตบนบรรทัด 5 เส้น</h1>
+      <p class="sub">ดูโน้ตที่ไฮไลต์สีเหลือง แล้วกดชื่อโน้ตให้ถูก</p>
+    </div>
+  </header>
+
+  <div class="settings" role="group" aria-label="ตั้งค่า">
+    <div class="group">
+      <span class="group-label">กุญแจเสียง</span>
+      <div class="seg">
+        <input type="radio" name="clef" id="clef-treble" value="treble" checked><label for="clef-treble">ซอล 𝄞</label>
+        <input type="radio" name="clef" id="clef-bass" value="bass"><label for="clef-bass">ฟา 𝄢</label>
+        <input type="radio" name="clef" id="clef-mix" value="mix"><label for="clef-mix">สลับ</label>
+      </div>
+    </div>
+    <div class="group">
+      <span class="group-label">ช่วงโน้ต</span>
+      <div class="seg">
+        <input type="radio" name="range" id="range-0" value="0" checked><label for="range-0">ในบรรทัด</label>
+        <input type="radio" name="range" id="range-1" value="1"><label for="range-1">+ เส้นน้อย 1</label>
+        <input type="radio" name="range" id="range-2" value="2"><label for="range-2">+ เส้นน้อย 2</label>
+      </div>
+    </div>
+    <div class="group">
+      <span class="group-label">ชื่อโน้ต</span>
+      <div class="seg">
+        <input type="radio" name="naming" id="name-letter" value="letter" checked><label for="name-letter">C D E</label>
+        <input type="radio" name="naming" id="name-solfa" value="solfa"><label for="name-solfa">โด เร มี</label>
+      </div>
+    </div>
+    <div class="group">
+      <span class="group-label">เสียง</span>
+      <div class="seg">
+        <input type="radio" name="sound" id="sound-on" value="on" checked><label for="sound-on">เปิด</label>
+        <input type="radio" name="sound" id="sound-off" value="off"><label for="sound-off">ปิด</label>
+      </div>
+    </div>
+    <div class="group">
+      <span class="group-label">ชื่อโน้ตในช่องหลังกุญแจ</span>
+      <div class="seg">
+        <input type="radio" name="ref" id="ref-on" value="on"><label for="ref-on">แสดง</label>
+        <input type="radio" name="ref" id="ref-off" value="off" checked><label for="ref-off">ซ่อน</label>
+      </div>
+    </div>
+  </div>
+
+  <section class="mic" aria-label="ตอบด้วยเสียงเปียโน">
+    <div class="weak-head">
+      <h2>ตอบด้วยเสียงเปียโน</h2>
+      <span class="pill" id="mic-pill">ไมค์ปิดอยู่</span>
+    </div>
+    <div class="mic-row">
+      <button class="btn" id="mic-start" type="button">เปิดไมค์</button>
+      <label class="field" for="mic-device"><span class="group-label">อุปกรณ์รับเสียง (เลือก CABLE Output ถ้าใช้ loopback)</span>
+        <select id="mic-device"><option value="">ค่าเริ่มต้นของระบบ</option></select>
+      </label>
+      <div class="group">
+        <span class="group-label">ใช้เสียงตอบโน้ต</span>
+        <div class="seg">
+          <input type="radio" name="micanswer" id="micans-off" value="off" checked><label for="micans-off">ปิด</label>
+          <input type="radio" name="micanswer" id="micans-on" value="on" disabled><label for="micans-on">เปิด</label>
+        </div>
+      </div>
+    </div>
+    <div class="mic-test">
+      <div class="meter" aria-hidden="true"><div class="meter-fill" id="mic-level"></div></div>
+      <div class="heard" id="mic-heard" aria-live="polite">–</div>
+      <p class="mic-sub" id="mic-sub">ขั้นที่ 1: กด "เปิดไมค์" แล้วลองเล่นเปียโน ถ้าแถบเขียวขยับและชื่อโน้ตตรงกับที่เล่น แปลว่าได้ยินเสียงแล้ว · ขั้นที่ 2: เปิด "ใช้เสียงตอบโน้ต" แล้วเล่นตามโน้ตบนบรรทัด ต้องตรงทั้งชื่อโน้ตและความสูงต่ำ</p>
+    </div>
+  </section>
+
+  <section class="desk" aria-label="บรรทัดโน้ต">
+    <div class="prompt">
+      <span>โน้ตตัวที่ <strong id="pos">1</strong> จาก 4</span>
+      <span id="clefName">กุญแจซอล</span>
+    </div>
+    <svg id="staff" class="staff-svg" viewBox="0 0 400 156" role="img" aria-label="บรรทัด 5 เส้นพร้อมโน้ต"></svg>
+    <div class="keys" id="keys"></div>
+    <p class="hint">กดคีย์บอร์ดได้: ตัวอักษร C D E F G A B หรือเลข 1–7</p>
+  </section>
+
+  <section class="stats" aria-label="ผลการฝึก">
+    <div class="stat"><div class="v ok" id="s-ok">0</div><div class="k">ตอบถูก</div></div>
+    <div class="stat"><div class="v bad" id="s-bad">0</div><div class="k">ตอบผิด</div></div>
+    <div class="stat"><div class="v" id="s-acc">–</div><div class="k">ความแม่นยำ</div></div>
+    <div class="stat"><div class="v" id="s-streak">0</div><div class="k">ถูกติดกัน (สูงสุด <span id="s-best">0</span>)</div></div>
+    <div class="stat"><div class="v" id="s-time">–</div><div class="k">เวลาเฉลี่ยต่อตัว</div></div>
+  </section>
+
+  <section class="weak">
+    <div class="weak-head">
+      <h2>เลือกโน้ตที่จะฝึก</h2>
+      <div class="presets">
+        <button class="link-btn" type="button" data-preset="all">เปิดทั้งหมด</button>
+        <button class="link-btn" type="button" data-preset="line">เฉพาะโน้ตบนเส้น</button>
+        <button class="link-btn" type="button" data-preset="space">เฉพาะโน้ตในช่อง</button>
+        <button class="link-btn" id="reset" type="button">เริ่มนับใหม่</button>
+      </div>
+    </div>
+    <div class="chips" id="chips"></div>
+    <p class="hint" id="chips-hint">กดที่โน้ตเพื่อปิดหรือเปิด ตัวเลข % คือความแม่นยำของโน้ตนั้น โน้ตที่ตอบผิดบ่อยจะถูกสุ่มให้เจอบ่อยขึ้น</p>
+  </section>
+</div>
+
+<script>
+(function () {
+  const LETTERS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+  const SOLFA = ['โด', 'เร', 'มี', 'ฟา', 'ซอล', 'ลา', 'ที'];
+  const SEMI = [0, 2, 4, 5, 7, 9, 11];
+  // d = octave*7 + letter index (C4 = 28). bottom = note on the bottom staff line.
+  const CLEFS = {
+    treble: { bottom: 30, glyph: '\u{1D11E}', name: 'กุญแจซอล', size: 46, gy: 3 },
+    bass: { bottom: 18, glyph: '\u{1D122}', name: 'กุญแจฟา', size: 46, gy: 1 }
+  };
+  const S = 12, TOP = 52, BOT = TOP + 4 * S, PER_ROW = 4;
+  const NOTE_X = [130, 198, 266, 334];
+
+  const store = {
+    get(k, f) { try { const v = localStorage.getItem(k); return v == null ? f : JSON.parse(v); } catch (e) { return f; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  };
+
+  const st = {
+    clef: 'treble', range: 0, naming: 'letter', sound: true,
+    row: [], idx: 0, rowClef: 'treble', locked: false, shownAt: 0, last: null,
+    ok: 0, bad: 0, streak: 0, best: store.get('nr-best', 0), times: [],
+    per: store.get('nr-per', {}), off: store.get('nr-off', {}),
+    showRef: false
+  };
+  Object.assign(st, store.get('nr-settings', {}));
+
+  const nameOf = (d) => st.naming === 'solfa' ? SOLFA[d % 7] : LETTERS[d % 7];
+  const sci = (d) => LETTERS[d % 7] + Math.floor(d / 7);
+  const yOf = (d, clef) => BOT - (d - CLEFS[clef].bottom) * S / 2;
+  const midi = (d) => 12 * (Math.floor(d / 7) + 1) + SEMI[d % 7];
+
+  function rangeFor(clef) {
+    const b = CLEFS[clef].bottom, e = 1 + 2 * st.range;
+    return [b - e, b + 8 + e];
+  }
+
+  function pick(clef, avoid) {
+    const [lo, hi] = rangeFor(clef);
+    let ds = [];
+    for (let d = lo; d <= hi; d++) if (!st.off[clef + ':' + d]) ds.push(d);
+    if (!ds.length) for (let d = lo; d <= hi; d++) ds.push(d);
+    if (ds.length > 1) ds = ds.filter(d => d !== avoid);
+    const pool = ds.map(d => {
+      const p = st.per[clef + ':' + d] || { h: 0, m: 0 };
+      return { d, w: 1 + (p.m * 2) / (1 + p.h * 0.5) };
+    });
+    let r = Math.random() * pool.reduce((s, x) => s + x.w, 0);
+    for (const x of pool) { if ((r -= x.w) <= 0) return x.d; }
+    return pool[pool.length - 1].d;
+  }
+
+  function newRow() {
+    st.rowClef = st.clef === 'mix' ? (Math.random() < .5 ? 'treble' : 'bass') : st.clef;
+    st.row = [];
+    let prev = null;
+    for (let i = 0; i < PER_ROW; i++) { prev = pick(st.rowClef, prev); st.row.push({ d: prev, res: null }); }
+    st.idx = 0; st.locked = false; st.shownAt = performance.now();
+    renderStaff();
+  }
+
+  // Fit the clef glyph's ink box onto the staff, whatever font metrics the browser ends up with.
+  const CLEF_BOX = { treble: [TOP - 1.7 * S, BOT + 1.5 * S], bass: [TOP - 0.1 * S, TOP + 3.1 * S] };
+  const clefCache = {};
+  let fontsReady = false;
+  function clefPlace(c) {
+    if (clefCache[c]) return clefCache[c];
+    const [yt, yb] = CLEF_BOX[c];
+    let out = { x: 16, y: c === 'treble' ? BOT + 0.9 * S : TOP + 2.6 * S, size: c === 'treble' ? 64 : 40 };
+    try {
+      const ctx = document.createElement('canvas').getContext('2d');
+      ctx.font = '100px ' + getComputedStyle(document.documentElement).getPropertyValue('--font-music');
+      const m = ctx.measureText(CLEFS[c].glyph);
+      const a = m.actualBoundingBoxAscent, d = m.actualBoundingBoxDescent;
+      if (a + d > 5) {
+        const size = (yb - yt) / (a + d) * 100;
+        out = { x: 16 + (m.actualBoundingBoxLeft || 0) * size / 100, y: yt + a * size / 100, size };
+        if (fontsReady) clefCache[c] = out;
+      }
+    } catch (e) {}
+    return out;
+  }
+
+  function renderStaff() {
+    const c = st.rowClef, cf = CLEFS[c];
+    let s = '';
+    if (st.idx < PER_ROW) {
+      const x = NOTE_X[st.idx];
+      s += `<rect class="cur-bg" x="${x - 26}" y="6" width="52" height="${156 - 12}" rx="10"/>`;
+    }
+    for (let i = 0; i < 5; i++) s += `<line class="staff-line" x1="8" x2="392" y1="${TOP + i * S}" y2="${TOP + i * S}"/>`;
+    s += `<line class="bar" x1="8" x2="8" y1="${TOP}" y2="${BOT}"/><line class="bar" x1="392" x2="392" y1="${TOP}" y2="${BOT}"/>`;
+    const cp = clefPlace(c);
+    s += `<text class="clef" x="${cp.x}" y="${cp.y}" font-size="${cp.size}">${cf.glyph}</text>`;
+    // Space-note names right after the clef: the four spaces plus the one above and below the staff.
+    if (st.showRef) {
+      for (let rel = -1; rel <= 9; rel += 2) {
+        s += `<text class="space-lbl" x="74" y="${BOT - rel * S / 2 + 4}">${nameOf(cf.bottom + rel)}</text>`;
+      }
+    }
+
+    st.row.forEach((n, i) => {
+      const x = NOTE_X[i], y = yOf(n.d, c), rel = n.d - cf.bottom;
+      const cls = i === st.idx && !n.res ? 'cur' : (n.res || '');
+      let g = `<g class="${cls}">`;
+      for (let L = -2; L >= rel; L -= 2) { const ly = BOT - L * S / 2; g += `<line class="ledger" x1="${x - 13}" x2="${x + 13}" y1="${ly}" y2="${ly}"/>`; }
+      for (let L = 10; L <= rel; L += 2) { const ly = BOT - L * S / 2; g += `<line class="ledger" x1="${x - 13}" x2="${x + 13}" y1="${ly}" y2="${ly}"/>`; }
+      const up = rel < 4;
+      g += up
+        ? `<line class="stem" x1="${x + 6.3}" x2="${x + 6.3}" y1="${y - 1}" y2="${y - 3.5 * S}"/>`
+        : `<line class="stem" x1="${x - 6.3}" x2="${x - 6.3}" y1="${y + 1}" y2="${y + 3.5 * S}"/>`;
+      g += `<ellipse class="note" cx="${x}" cy="${y}" rx="7" ry="4.9" transform="rotate(-22 ${x} ${y})"/>`;
+      if (n.res) g += `<text class="lbl" x="${x}" y="${n.res === 'bad' ? 150 : 150}">${nameOf(n.d)}${n.res === 'bad' ? '' : ' ✓'}</text>`;
+      g += '</g>';
+      s += g;
+    });
+    document.getElementById('staff').innerHTML = s;
+    document.getElementById('pos').textContent = Math.min(st.idx + 1, PER_ROW);
+    document.getElementById('clefName').textContent = cf.name;
+  }
+
+  function renderKeys() {
+    const k = document.getElementById('keys');
+    k.innerHTML = LETTERS.map((L, i) => {
+      const big = st.naming === 'solfa' ? SOLFA[i] : L;
+      const small = st.naming === 'solfa' ? L : SOLFA[i];
+      return `<button class="key" type="button" data-i="${i}" id="key-${L}" aria-label="${L} ${SOLFA[i]}"><span class="big">${big}</span><span class="small">${small}</span><kbd>${L}</kbd></button>`;
+    }).join('');
+  }
+
+  function renderStats() {
+    const tot = st.ok + st.bad;
+    document.getElementById('s-ok').textContent = st.ok;
+    document.getElementById('s-bad').textContent = st.bad;
+    document.getElementById('s-acc').textContent = tot ? Math.round(st.ok / tot * 100) + '%' : '–';
+    document.getElementById('s-streak').textContent = st.streak;
+    document.getElementById('s-best').textContent = st.best;
+    const recent = st.times.slice(-20);
+    document.getElementById('s-time').textContent = recent.length ? (recent.reduce((a, b) => a + b, 0) / recent.length / 1000).toFixed(1) + ' วิ' : '–';
+
+    const clefs = st.clef === 'mix' ? ['treble', 'bass'] : [st.clef];
+    let html = '';
+    clefs.forEach(c => {
+      const [lo, hi] = rangeFor(c);
+      if (clefs.length > 1) html += `<span class="chip-label">${CLEFS[c].name}</span>`;
+      for (let d = lo; d <= hi; d++) {
+        const k = c + ':' + d, p = st.per[k], on = !st.off[k];
+        const t = p ? p.h + p.m : 0;
+        const pct = t ? Math.round(p.h / t * 100) : null;
+        const cls = !on ? 'off' : pct == null ? '' : pct >= 85 ? 'good' : pct < 60 ? 'poor' : '';
+        html += `<button type="button" class="chip ${cls}" data-k="${k}" aria-pressed="${on}" title="${on ? 'กดเพื่อปิดโน้ตนี้' : 'กดเพื่อเปิดโน้ตนี้'} · ตอบแล้ว ${t} ครั้ง"><b>${nameOf(d)}</b><span class="pct">${sci(d)} · ${pct == null ? '–' : pct + '%'}</span></button>`;
+      }
+    });
+    document.getElementById('chips').innerHTML = html;
+  }
+
+  let ac = null;
+  function play(d, soft) {
+    if (!st.sound) return;
+    try {
+      ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+      if (ac.state === 'suspended') ac.resume();
+      const f = 440 * Math.pow(2, (midi(d) - 69) / 12), t = ac.currentTime;
+      const g = ac.createGain(), o = ac.createOscillator(), o2 = ac.createOscillator(), g2 = ac.createGain();
+      o.type = 'triangle'; o.frequency.value = f;
+      o2.type = 'sine'; o2.frequency.value = f * 2; g2.gain.value = .18;
+      o.connect(g); o2.connect(g2).connect(g); g.connect(ac.destination);
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(soft ? .14 : .3, t + .012);
+      g.gain.exponentialRampToValueAtTime(.0008, t + 1.3);
+      o.start(t); o2.start(t); o.stop(t + 1.4); o2.stop(t + 1.4);
+    } catch (e) {}
+  }
+
+  function flash(i, ok) {
+    const el = document.querySelector(`.key[data-i="${i}"]`);
+    if (!el) return;
+    el.classList.remove('flash-ok', 'flash-bad'); void el.offsetWidth;
+    el.classList.add(ok ? 'flash-ok' : 'flash-bad');
+    setTimeout(() => el.classList.remove('flash-ok', 'flash-bad'), 380);
+  }
+
+  // i = letter index from a button/key; playedD = exact note heard by the mic (null for a black key), which must match the octave too.
+  function answer(i, playedD) {
+    if (st.locked || st.idx >= PER_ROW) return null;
+    const n = st.row[st.idx], now = performance.now();
+    const ok = playedD === undefined ? n.d % 7 === i : playedD === n.d;
+    st.times.push(now - st.shownAt); st.shownAt = now;
+    const key = st.rowClef + ':' + n.d, p = st.per[key] || { h: 0, m: 0 };
+    if (ok) { st.ok++; st.streak++; p.h++; if (st.streak > st.best) { st.best = st.streak; store.set('nr-best', st.best); } }
+    else { st.bad++; st.streak = 0; p.m++; flash(n.d % 7, true); }
+    st.per[key] = p; store.set('nr-per', st.per);
+    n.res = ok ? 'ok' : 'bad';
+    if (i >= 0) flash(i, ok);
+    // While the mic is answering, our own tone would be heard back as a played note.
+    if (!mic.answerMode) play(n.d, !ok);
+    st.idx++;
+    renderStaff(); renderStats();
+    if (st.idx >= PER_ROW) { st.locked = true; setTimeout(newRow, 900); }
+    return { ok, target: n.d };
+  }
+
+  // ---- Microphone: hear a piano note, name it, and answer with it ----
+  const mic = { stream: null, ctx: null, analyser: null, buf: null, timer: 0, answerMode: false,
+    cand: null, count: 0, lastFired: null, armed: true, prevRms: 0 };
+  const SILENCE = 0.006, MIN_FRAMES = 3;
+  const $ = (id) => document.getElementById(id);
+
+  function micMsg(text, cls) { const el = $('mic-sub'); el.textContent = text; el.className = 'mic-sub' + (cls ? ' ' + cls : ''); }
+  function micPill(text, cls) { const el = $('mic-pill'); el.textContent = text; el.className = 'pill' + (cls ? ' ' + cls : ''); }
+  const midiName = (m) => {
+    const pc = m % 12, oct = Math.floor(m / 12) - 1, idx = SEMI.indexOf(pc);
+    if (idx < 0) return LETTERS[SEMI.indexOf(pc - 1)] + '#' + oct;
+    return LETTERS[idx] + oct;
+  };
+  const midiToD = (m) => { const idx = SEMI.indexOf(m % 12); return idx < 0 ? null : (Math.floor(m / 12) - 1) * 7 + idx; };
+
+  // YIN pitch detector on one block of samples; returns {f, clarity} or null.
+  function yin(buf, sr) {
+    const W = buf.length >> 1, tauMin = Math.floor(sr / 1400), tauMax = Math.min(W - 2, Math.floor(sr / 50));
+    const d = new Float32Array(tauMax + 2);
+    for (let tau = 1; tau <= tauMax + 1; tau++) {
+      let s = 0;
+      for (let i = 0; i < W; i++) { const x = buf[i] - buf[i + tau]; s += x * x; }
+      d[tau] = s;
+    }
+    let run = 0; d[0] = 1;
+    for (let tau = 1; tau <= tauMax + 1; tau++) { run += d[tau]; d[tau] = run ? d[tau] * tau / run : 1; }
+    let tau = -1;
+    for (let t = tauMin; t <= tauMax; t++) {
+      if (d[t] < 0.15) { while (t + 1 <= tauMax && d[t + 1] < d[t]) t++; tau = t; break; }
+    }
+    if (tau < 0) return null;
+    const x0 = d[tau - 1], x1 = d[tau], x2 = d[tau + 1], den = x0 + x2 - 2 * x1;
+    const shift = den ? (x0 - x2) / (2 * den) : 0;
+    return { f: sr / (tau + shift), clarity: 1 - x1 };
+  }
+
+  function micTick() {
+    const buf = mic.buf;
+    mic.analyser.getFloatTimeDomainData(buf);
+    let sum = 0;
+    for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
+    const rms = Math.sqrt(sum / buf.length);
+    const pct = Math.max(0, Math.min(100, (20 * Math.log10(rms + 1e-9) + 60) / 60 * 100));
+    const fill = $('mic-level');
+    fill.style.width = pct + '%';
+    fill.classList.toggle('live', rms > SILENCE);
+    if (rms > SILENCE) micPill('ได้ยินเสียง ✓', 'live'); else micPill('ไมค์เปิดอยู่ · เงียบ', '');
+
+    if (rms < SILENCE) { mic.cand = null; mic.count = 0; mic.armed = true; mic.prevRms = rms; return; }
+    if (rms > mic.prevRms * 1.6 && rms > SILENCE * 2) mic.armed = true; // a fresh key strike
+    mic.prevRms = rms;
+
+    const r = yin(buf, mic.ctx.sampleRate);
+    if (!r || r.clarity < 0.8 || r.f < 50 || r.f > 1400) return;
+    const mf = 69 + 12 * Math.log2(r.f / 440), m = Math.round(mf), cents = Math.round((mf - m) * 100);
+    if (m === mic.cand) mic.count++; else { mic.cand = m; mic.count = 1; }
+    if (mic.count < MIN_FRAMES) return;
+
+    const d = midiToD(m);
+    $('mic-heard').innerHTML = `${midiName(m)} <small>${d == null ? 'คีย์ดำ' : SOLFA[d % 7]} · ${Math.round(r.f)} Hz${Math.abs(cents) > 15 ? ` · ${cents > 0 ? '+' : ''}${cents}` : ''}</small>`;
+    if (!(mic.armed || m !== mic.lastFired)) return;
+    mic.lastFired = m; mic.armed = false;
+    if (mic.answerMode) answerByPitch(m, d);
+  }
+
+  function answerByPitch(m, d) {
+    const res = answer(d == null ? -1 : d % 7, d);
+    if (!res) return;
+    if (res.ok) { micMsg(`ถูก ✓ ${midiName(m)}`, 'ok'); return; }
+    const diff = m - midi(res.target), dir = diff > 0 ? 'สูง' : 'ต่ำ';
+    const how = diff % 12 === 0 ? `${Math.abs(diff / 12)} อ็อกเทฟ` : `${Math.abs(diff)} ครึ่งเสียง`;
+    micMsg(`คุณเล่น ${midiName(m)} ซึ่ง${dir}ไป ${how} · ที่ถูกคือ ${sci(res.target)} (${SOLFA[res.target % 7]})`, 'bad');
+  }
+
+  async function listDevices() {
+    try {
+      const sel = $('mic-device'), cur = sel.value;
+      const devs = (await navigator.mediaDevices.enumerateDevices()).filter(x => x.kind === 'audioinput');
+      sel.innerHTML = '<option value="">ค่าเริ่มต้นของระบบ</option>' +
+        devs.filter(x => x.deviceId && x.deviceId !== 'default').map((x, i) => `<option value="${x.deviceId}">${(x.label || 'อุปกรณ์ ' + (i + 1)).replace(/</g, '&lt;')}</option>`).join('');
+      sel.value = devs.some(x => x.deviceId === cur) ? cur : (store.get('nr-mic', '') && devs.some(x => x.deviceId === store.get('nr-mic', '')) ? store.get('nr-mic', '') : '');
+    } catch (e) {}
+  }
+
+  function micAllowedHere() {
+    try {
+      const pol = document.permissionsPolicy || document.featurePolicy;
+      return !pol || !pol.allowsFeature || pol.allowsFeature('microphone');
+    } catch (e) { return true; }
+  }
+
+  async function micStart() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      micPill('ใช้ไมค์ไม่ได้', 'err'); micMsg('เบราว์เซอร์นี้ไม่รองรับไมค์ ลองเปิดด้วย Chrome หรือ Edge ผ่านลิงก์ https', 'bad'); return;
+    }
+    if (!micAllowedHere()) {
+      micPill('ใช้ไมค์ไม่ได้', 'err');
+      micMsg('หน้านี้ถูกเปิดอยู่ในกรอบที่ไม่อนุญาตให้ใช้ไมค์ (เช่น หน้า Claude หรือกรอบของ Google) ต้องเปิดจากที่อื่น', 'bad'); return;
+    }
+    micStop(true);
+    const dev = $('mic-device').value;
+    try {
+      mic.stream = await navigator.mediaDevices.getUserMedia({ audio: {
+        deviceId: dev ? { exact: dev } : undefined,
+        echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+    } catch (e) {
+      micPill('ใช้ไมค์ไม่ได้', 'err');
+      micMsg(e && e.name === 'NotAllowedError'
+        ? 'ไม่ได้รับอนุญาตให้ใช้ไมค์ กดไอคอนแม่กุญแจหรือไมค์ที่แถบที่อยู่ของเบราว์เซอร์แล้วเลือก "อนุญาต" จากนั้นกดเปิดไมค์อีกครั้ง'
+        : 'เปิดไมค์ไม่ได้ (' + (e && e.name || 'ไม่ทราบสาเหตุ') + ') ลองเลือกอุปกรณ์อื่น', 'bad');
+      return;
+    }
+    mic.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const src = mic.ctx.createMediaStreamSource(mic.stream);
+    mic.analyser = mic.ctx.createAnalyser();
+    mic.analyser.fftSize = 4096;
+    src.connect(mic.analyser);
+    mic.buf = new Float32Array(mic.analyser.fftSize);
+    mic.timer = setInterval(micTick, 40);
+    $('mic-start').textContent = 'ปิดไมค์'; $('mic-start').classList.add('on');
+    $('micans-on').disabled = false;
+    micPill('ไมค์เปิดอยู่ · เงียบ', '');
+    micMsg('ลองเล่นเปียโนทีละตัว ถ้าแถบเขียวขยับและชื่อโน้ตด้านขวาตรงกับที่เล่น แปลว่าพร้อมแล้ว จากนั้นเปิด "ใช้เสียงตอบโน้ต"');
+    listDevices();
+  }
+
+  function micStop(quiet) {
+    clearInterval(mic.timer); mic.timer = 0;
+    if (mic.stream) mic.stream.getTracks().forEach(t => t.stop());
+    if (mic.ctx) mic.ctx.close().catch(() => {});
+    mic.stream = mic.ctx = mic.analyser = null;
+    mic.cand = mic.lastFired = null; mic.count = 0; mic.armed = true;
+    if (quiet) return;
+    mic.answerMode = false;
+    $('micans-off').checked = true; $('micans-on').disabled = true;
+    $('mic-start').textContent = 'เปิดไมค์'; $('mic-start').classList.remove('on');
+    $('mic-level').style.width = '0'; $('mic-heard').textContent = '–';
+    micPill('ไมค์ปิดอยู่', '');
+    micMsg('ปิดไมค์แล้ว ตอบด้วยปุ่มหรือคีย์บอร์ดได้ตามปกติ');
+  }
+
+  $('mic-start').addEventListener('click', () => { if (mic.stream) micStop(); else micStart(); });
+  $('mic-device').addEventListener('change', () => { store.set('nr-mic', $('mic-device').value); if (mic.stream) micStart(); });
+  document.querySelectorAll('input[name="micanswer"]').forEach(el => el.addEventListener('change', () => {
+    mic.answerMode = el.value === 'on' && el.checked;
+    mic.armed = false; // ignore whatever is still ringing; wait for the next key strike
+    micMsg(mic.answerMode
+      ? 'เล่นโน้ตที่ไฮไลต์สีเหลืองบนบรรทัด ต้องตรงทั้งชื่อและความสูงต่ำ (เสียงตอบรับของหน้าเว็บจะปิดไว้ระหว่างนี้)'
+      : 'ปิดการตอบด้วยเสียงแล้ว ไมค์ยังเปิดอยู่เพื่อทดสอบเสียงได้');
+  }));
+
+  function saveSettings() { store.set('nr-settings', { clef: st.clef, range: st.range, naming: st.naming, sound: st.sound, showRef: st.showRef }); }
+
+  // wire up controls
+  const setRadio = (name, val) => { const el = document.querySelector(`input[name="${name}"][value="${val}"]`); if (el) el.checked = true; };
+  setRadio('clef', st.clef); setRadio('range', String(st.range)); setRadio('naming', st.naming); setRadio('sound', st.sound ? 'on' : 'off'); setRadio('ref', st.showRef ? 'on' : 'off');
+  document.querySelectorAll('.settings input').forEach(el => el.addEventListener('change', () => {
+    const v = el.value;
+    if (el.name === 'clef') { st.clef = v; newRow(); }
+    if (el.name === 'range') { st.range = +v; newRow(); }
+    if (el.name === 'naming') { st.naming = v; renderKeys(); renderStaff(); }
+    if (el.name === 'sound') st.sound = v === 'on';
+    if (el.name === 'ref') { st.showRef = v === 'on'; renderStaff(); }
+    saveSettings(); renderStats();
+  }));
+  document.getElementById('keys').addEventListener('click', e => {
+    const b = e.target.closest('.key'); if (b) answer(+b.dataset.i);
+  });
+  document.addEventListener('keydown', e => {
+    if (e.ctrlKey || e.metaKey || e.altKey || e.target.matches('input, select')) return;
+    const k = e.key.toUpperCase();
+    let i = LETTERS.indexOf(k);
+    if (i < 0 && /^[1-7]$/.test(k)) i = +k - 1;
+    if (i >= 0) { e.preventDefault(); answer(i); }
+  });
+  const HINT = document.getElementById('chips-hint').textContent;
+  function warn(msg) {
+    const h = document.getElementById('chips-hint');
+    h.textContent = msg; h.classList.add('warn');
+    clearTimeout(warn.t);
+    warn.t = setTimeout(() => { h.textContent = HINT; h.classList.remove('warn'); }, 2500);
+  }
+  function applyOff() { store.set('nr-off', st.off); renderStats(); newRow(); }
+  document.getElementById('chips').addEventListener('click', e => {
+    const b = e.target.closest('button.chip'); if (!b) return;
+    const k = b.dataset.k, c = k.split(':')[0];
+    if (!st.off[k]) {
+      const [lo, hi] = rangeFor(c);
+      let on = 0;
+      for (let d = lo; d <= hi; d++) if (!st.off[c + ':' + d]) on++;
+      if (on <= 1) { warn('ต้องเปิดโน้ตไว้อย่างน้อย 1 ตัว'); return; }
+      st.off[k] = true;
+    } else delete st.off[k];
+    applyOff();
+  });
+  document.querySelectorAll('[data-preset]').forEach(b => b.addEventListener('click', () => {
+    const mode = b.dataset.preset;
+    (st.clef === 'mix' ? ['treble', 'bass'] : [st.clef]).forEach(c => {
+      const [lo, hi] = rangeFor(c), bottom = CLEFS[c].bottom;
+      for (let d = lo; d <= hi; d++) {
+        const onLine = (d - bottom) % 2 === 0;
+        const off = mode === 'line' ? !onLine : mode === 'space' ? onLine : false;
+        if (off) st.off[c + ':' + d] = true; else delete st.off[c + ':' + d];
+      }
+    });
+    applyOff();
+  }));
+  document.getElementById('reset').addEventListener('click', () => {
+    st.ok = st.bad = st.streak = 0; st.times = []; st.per = {}; store.set('nr-per', {});
+    renderStats(); newRow();
+  });
+
+  renderKeys(); newRow(); renderStats();
+  if (document.fonts && document.fonts.load) {
+    Promise.all([document.fonts.load('40px "Noto Music"', '\u{1D11E}\u{1D122}'), document.fonts.ready])
+      .catch(() => {}).then(() => { fontsReady = true; renderStaff(); });
+  }
+})();
+</script>
+</body>
+</html>
