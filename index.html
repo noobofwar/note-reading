@@ -91,7 +91,9 @@ h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(24px, 
 .mic select { font: inherit; font-size: 14px; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 9px; padding: 6px 8px; max-width: 100%; min-width: 0; }
 .field { display: grid; gap: 4px; min-width: 0; flex: 1 1 220px; }
 .mic-test { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 16px; align-items: center; }
-.meter { height: 12px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); overflow: hidden; }
+.meter { position: relative; height: 12px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); overflow: hidden; }
+.meter-gate { position: absolute; top: 0; bottom: 0; width: 3px; margin-left: -1px; background: var(--bad); }
+.mic input[type="range"] { width: 100%; accent-color: var(--ink); }
 .meter-fill { height: 100%; width: 0; background: var(--muted); transition: width .05s linear; }
 .meter-fill.live { background: var(--ok); }
 .heard { font-family: var(--font-display); font-weight: 700; font-size: 26px; min-width: 7ch; text-align: right; font-variant-numeric: tabular-nums; line-height: 1.1; }
@@ -226,8 +228,14 @@ button.chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1p
         </div>
       </div>
     </div>
+    <div class="mic-row">
+      <label class="field" for="mic-gate"><span class="group-label">ตัดเสียงรบกวน: เสียงที่เบากว่าเส้นแดงจะไม่นับ (<span id="mic-gate-val">-44</span> dB)</span>
+        <input type="range" id="mic-gate" min="-60" max="-10" step="1" value="-44">
+      </label>
+      <button class="link-btn" id="mic-calib" type="button">วัดเสียงรบกวนอัตโนมัติ</button>
+    </div>
     <div class="mic-test">
-      <div class="meter" aria-hidden="true"><div class="meter-fill" id="mic-level"></div></div>
+      <div class="meter" aria-hidden="true"><div class="meter-fill" id="mic-level"></div><div class="meter-gate" id="mic-gate-mark"></div></div>
       <div class="heard" id="mic-heard" aria-live="polite">–</div>
       <p class="mic-sub" id="mic-sub">ขั้นที่ 1: กด "เปิดไมค์" แล้วลองเล่นเปียโน ถ้าแถบเขียวขยับและชื่อโน้ตตรงกับที่เล่น แปลว่าได้ยินเสียงแล้ว · ขั้นที่ 2: เปิด "ใช้เสียงตอบโน้ต" แล้วเล่นตามโน้ตบนบรรทัด ต้องตรงทั้งชื่อโน้ตและความสูงต่ำ</p>
     </div>
@@ -470,9 +478,17 @@ button.chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1p
 
   // ---- Microphone: hear a piano note, name it, and answer with it ----
   const mic = { stream: null, ctx: null, analyser: null, buf: null, timer: 0, answerMode: false,
-    cand: null, count: 0, lastFired: null, armed: true, prevRms: 0 };
-  const SILENCE = 0.006, MIN_FRAMES = 3;
+    cand: null, count: 0, lastFired: null, armed: true, prevRms: 0, gateDb: store.get('nr-gate', -44), calib: null };
+  const MIN_FRAMES = 3;
   const $ = (id) => document.getElementById(id);
+  const dbToPct = (db) => Math.max(0, Math.min(100, (db + 60) / 60 * 100));
+  function setGate(db) {
+    mic.gateDb = Math.max(-60, Math.min(-10, Math.round(db)));
+    $('mic-gate').value = mic.gateDb;
+    $('mic-gate-val').textContent = mic.gateDb;
+    $('mic-gate-mark').style.left = dbToPct(mic.gateDb) + '%';
+    store.set('nr-gate', mic.gateDb);
+  }
 
   function micMsg(text, cls) { const el = $('mic-sub'); el.textContent = text; el.className = 'mic-sub' + (cls ? ' ' + cls : ''); }
   function micPill(text, cls) { const el = $('mic-pill'); el.textContent = text; el.className = 'pill' + (cls ? ' ' + cls : ''); }
@@ -509,15 +525,29 @@ button.chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1p
     mic.analyser.getFloatTimeDomainData(buf);
     let sum = 0;
     for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
-    const rms = Math.sqrt(sum / buf.length);
-    const pct = Math.max(0, Math.min(100, (20 * Math.log10(rms + 1e-9) + 60) / 60 * 100));
+    const rms = Math.sqrt(sum / buf.length), db = 20 * Math.log10(rms + 1e-9);
+    const gate = Math.pow(10, mic.gateDb / 20);
     const fill = $('mic-level');
-    fill.style.width = pct + '%';
-    fill.classList.toggle('live', rms > SILENCE);
-    if (rms > SILENCE) micPill('ได้ยินเสียง ✓', 'live'); else micPill('ไมค์เปิดอยู่ · เงียบ', '');
+    fill.style.width = dbToPct(db) + '%';
 
-    if (rms < SILENCE) { mic.cand = null; mic.count = 0; mic.armed = true; mic.prevRms = rms; return; }
-    if (rms > mic.prevRms * 1.6 && rms > SILENCE * 2) mic.armed = true; // a fresh key strike
+    // Auto-calibration: listen to the room for a moment and put the gate above its loudest noise.
+    if (mic.calib) {
+      mic.calib.peak = Math.max(mic.calib.peak, db);
+      fill.classList.remove('live');
+      micPill('กำลังวัดเสียงรบกวน…', '');
+      if (performance.now() >= mic.calib.until) {
+        setGate(mic.calib.peak + 6);
+        mic.calib = null;
+        micMsg(`ตั้งเส้นตัดเสียงรบกวนไว้ที่ ${mic.gateDb} dB แล้ว ลองเล่นเปียโนดูว่าแถบเขียวเลยเส้นแดงและชื่อโน้ตขึ้นถูกต้อง`);
+      }
+      return;
+    }
+
+    fill.classList.toggle('live', rms > gate);
+    if (rms > gate) micPill('ได้ยินเสียง ✓', 'live'); else micPill('ไมค์เปิดอยู่ · เงียบ', '');
+
+    if (rms < gate) { mic.cand = null; mic.count = 0; mic.armed = true; mic.prevRms = rms; return; }
+    if (rms > mic.prevRms * 1.6 && rms > gate * 2) mic.armed = true; // a fresh key strike
     mic.prevRms = rms;
 
     const r = yin(buf, mic.ctx.sampleRate);
@@ -582,9 +612,12 @@ button.chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1p
     }
     mic.ctx = new (window.AudioContext || window.webkitAudioContext)();
     const src = mic.ctx.createMediaStreamSource(mic.stream);
+    // Band-limit to the piano range we read: cut rumble/hum below 55 Hz and hiss above 3 kHz.
+    const hp = mic.ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 55;
+    const lp = mic.ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3000;
     mic.analyser = mic.ctx.createAnalyser();
     mic.analyser.fftSize = 4096;
-    src.connect(mic.analyser);
+    src.connect(hp).connect(lp).connect(mic.analyser);
     mic.buf = new Float32Array(mic.analyser.fftSize);
     mic.timer = setInterval(micTick, 40);
     $('mic-start').textContent = 'ปิดไมค์'; $('mic-start').classList.add('on');
@@ -599,7 +632,7 @@ button.chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1p
     if (mic.stream) mic.stream.getTracks().forEach(t => t.stop());
     if (mic.ctx) mic.ctx.close().catch(() => {});
     mic.stream = mic.ctx = mic.analyser = null;
-    mic.cand = mic.lastFired = null; mic.count = 0; mic.armed = true;
+    mic.cand = mic.lastFired = mic.calib = null; mic.count = 0; mic.armed = true;
     if (quiet) return;
     mic.answerMode = false;
     $('micans-off').checked = true; $('micans-on').disabled = true;
@@ -609,6 +642,13 @@ button.chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1p
     micMsg('ปิดไมค์แล้ว ตอบด้วยปุ่มหรือคีย์บอร์ดได้ตามปกติ');
   }
 
+  setGate(mic.gateDb);
+  $('mic-gate').addEventListener('input', () => setGate(+$('mic-gate').value));
+  $('mic-calib').addEventListener('click', () => {
+    if (!mic.stream) { micMsg('กด "เปิดไมค์" ก่อน แล้วค่อยวัดเสียงรบกวน', 'bad'); return; }
+    mic.calib = { until: performance.now() + 2000, peak: -90 };
+    micMsg('กำลังวัดเสียงรบกวน 2 วินาที ห้ามเล่นเปียโนระหว่างนี้…');
+  });
   $('mic-start').addEventListener('click', () => { if (mic.stream) micStop(); else micStart(); });
   $('mic-device').addEventListener('change', () => { store.set('nr-mic', $('mic-device').value); if (mic.stream) micStart(); });
   document.querySelectorAll('input[name="micanswer"]').forEach(el => el.addEventListener('change', () => {
