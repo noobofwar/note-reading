@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ฝึกเล่นตามเพลง</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/abcjs@6.4.4/dist/abcjs-basic-min.js"></script>
+<style>
+/* Same palette and fonts as index.html */
+:root{
+  --bg:#e9edf2; --panel:#fbfcfd; --ink:#18202e; --muted:#5d6879; --line:#cfd6df;
+  --accent:#2c68ad; --ok:#1d8556; --bad:#c43a2f; --hint:#d99a12; --cur:#d99a12;
+  --font-display:"Bai Jamjuree","IBM Plex Sans Thai",system-ui,sans-serif;
+  --font-body:"IBM Plex Sans Thai","Leelawadee UI","Tahoma",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#11151c; --panel:#1a2029; --ink:#e6eaf1; --muted:#9aa5b5; --line:#2e3744;
+    --accent:#7fb2ec; --ok:#3fbf83; --bad:#ef6a5e; --hint:#f0b43a; --cur:#f0b43a; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#11151c; --panel:#1a2029; --ink:#e6eaf1; --muted:#9aa5b5; --line:#2e3744;
+  --accent:#7fb2ec; --ok:#3fbf83; --bad:#ef6a5e; --hint:#f0b43a; --cur:#f0b43a; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.55}
+main{max-width:1100px;margin:0 auto;padding:20px 16px 40px}
+h1{font-family:var(--font-display);font-weight:700;font-size:clamp(24px,4vw,32px);line-height:1.15;margin:0}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:16px}
+header a{color:var(--muted);text-decoration:none;border:1px solid var(--line);border-radius:8px;padding:4px 10px;font-size:13px}
+header a:hover{color:var(--ink);border-color:var(--muted)}
+.big{font-family:var(--font-display)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.row + .row{margin-top:8px}
+label{color:var(--muted);font-size:.92rem}
+select,input[type=number],input[type=text],button,textarea{
+  font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+input[type=number]{width:5em}
+button{cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.rec{background:var(--bad);border-color:var(--bad);color:#fff}
+button:disabled{opacity:.5;cursor:default}
+textarea{width:100%;min-height:90px;font-family:ui-monospace,Consolas,monospace;font-size:.9rem}
+#score{color:var(--ink);overflow-x:auto}
+#score svg{max-width:100%}
+.status{display:flex;flex-wrap:wrap;gap:18px;align-items:baseline;font-size:1.05rem}
+.big{font-size:1.6rem;font-weight:600}
+.ok{color:var(--ok)} .bad{color:var(--bad)} .muted{color:var(--muted)}
+details summary{cursor:pointer;color:var(--muted)}
+code{background:var(--bg);padding:1px 5px;border-radius:4px}
+#piano{position:relative;height:120px;user-select:none;touch-action:none;margin-top:6px}
+.key{position:absolute;top:0;border:1px solid var(--line);border-radius:0 0 6px 6px}
+.key.w{background:#fff;height:120px;z-index:1}
+.key.b{background:#222;height:74px;z-index:2;border-color:#000}
+.key.hint{background:var(--hint)!important}
+.key.down{background:var(--accent)!important}
+.key .lbl{position:absolute;bottom:4px;width:100%;text-align:center;font-size:10px;color:#888}
+#pianoWrap{overflow-x:auto}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <h1>ฝึกเล่นตามเพลง</h1>
+  <a href="index.html">← ฝึกอ่านโน้ตทีละตัว</a>
+</header>
+
+<div class="panel">
+  <div class="row">
+    <label>เพลง</label>
+    <select id="songSel"></select>
+    <input type="text" id="songName" placeholder="ชื่อเพลง" size="16">
+    <button id="saveBtn">บันทึก</button>
+    <button id="delBtn">ลบ</button>
+    <span class="muted" style="font-size:.85rem">เพลงที่บันทึกจะเก็บในเบราว์เซอร์เครื่องนี้เท่านั้น</span>
+  </div>
+  <div class="row">
+    <label>เทมโป ♩=</label><input type="number" id="tempo" min="30" max="240" value="80">
+    <label>MIDI</label><select id="midiSel"><option>ไม่พบ</option></select>
+    <span id="midiMsg" class="muted"></span>
+  </div>
+  <div class="row" style="margin-top:10px">
+    <textarea id="notes" spellcheck="false"></textarea>
+  </div>
+  <div class="row">
+    <button id="renderBtn">แสดงโน้ต</button>
+    <button id="recBtn" class="rec">● อัดจากคีย์บอร์ด</button>
+    <label><input type="checkbox" id="metro"> เมโทรนอมตอนอัด</label>
+    <details style="flex-basis:100%">
+      <summary>วิธีพิมพ์โน้ต</summary>
+      <p>พิมพ์ชื่อโน้ต + เลขออกเทฟ เว้นวรรคระหว่างตัว เช่น <code>C4</code> = โดกลาง, <code>C5</code> = โดสูง, <code>F#4</code> = ฟาชาร์ป, <code>Bb4</code> = ทีแฟลต<br>
+      ความยาว (หน่วยเป็นจังหวะ) ใส่หลัง <code>:</code> ถ้าไม่ใส่ = 1 จังหวะ (ตัวดำ) เช่น <code>E5:0.5</code> = เขบ็ต 1 ชั้น, <code>D5:0.25</code> = 2 ชั้น, <code>G4:1.5</code> = ตัวดำประจุด, <code>C5:2</code> = ตัวขาว, <code>C5:4</code> = ตัวกลม<br>
+      ตัวหยุดใช้ <code>r</code> เช่น <code>r:2</code> · เครื่องหมาย <code>|</code> ใส่ได้เพื่ออ่านง่าย (ระบบแบ่งห้อง 4/4 ให้เอง)<br>
+      หรือกด <b>อัดจากคีย์บอร์ด</b> แล้วเล่นบน NEK-110 ระบบจะเขียนโน้ตให้ (ควรเปิดเมโทรนอมและเล่นตามจังหวะ)</p>
+    </details>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="status">
+    <span>โน้ตถัดไป: <span id="expect" class="big">–</span></span>
+    <span>คุณกด: <span id="played" class="big">–</span></span>
+    <span>ถูก <b id="nOk" class="ok">0</b> · ผิด <b id="nBad" class="bad">0</b></span>
+    <span id="progress" class="muted"></span>
+  </div>
+  <div class="row">
+    <button id="startBtn" class="primary">▶ เริ่มฝึกใหม่</button>
+    <button id="hearBtn">🔊 ฟังโน้ตถัดไป</button>
+    <label><input type="checkbox" id="anyOct"> ไม่สนออกเทฟ</label>
+    <label><input type="checkbox" id="showHint" checked> ไฮไลต์คีย์ที่ต้องกด</label>
+  </div>
+  <div id="score"></div>
+  <div id="pianoWrap"><div id="piano"></div></div>
+</div>
+</main>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const SOLF  = ['โด','โด#','เร','เร#','มี','ฟา','ฟา#','ซอล','ซอล#','ลา','ลา#','ที'];
+const BASE = {C:0,D:2,E:4,F:5,G:7,A:9,B:11};
+const noteLabel = m => `${NAMES[m%12]}${Math.floor(m/12)-1} (${SOLF[m%12]})`;
+
+/* ---------- built-in demo songs (public domain) ---------- */
+const DEMOS = [
+  {name:'ตัวอย่าง: Ode to Joy (Beethoven)', tempo:90, text:
+`E4 E4 F4 G4 | G4 F4 E4 D4 | C4 C4 D4 E4 | E4:1.5 D4:0.5 D4:2 |
+E4 E4 F4 G4 | G4 F4 E4 D4 | C4 C4 D4 E4 | D4:1.5 C4:0.5 C4:2 |`},
+  {name:'ตัวอย่าง: Twinkle Twinkle', tempo:90, text:
+`C4 C4 G4 G4 | A4 A4 G4:2 | F4 F4 E4 E4 | D4 D4 C4:2 |
+G4 G4 F4 F4 | E4 E4 D4:2 | G4 G4 F4 F4 | E4 E4 D4:2 |
+C4 C4 G4 G4 | A4 A4 G4:2 | F4 F4 E4 E4 | D4 D4 C4:2 |`},
+];
+
+/* ---------- storage (per-browser, optional) ---------- */
+const KEY = 'note-practice-songs';
+function loadSongs(){ try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch(e){ return []; } }
+function storeSongs(s){ try { localStorage.setItem(KEY, JSON.stringify(s)); } catch(e){} }
+
+function fillSongSel(selectName){
+  const sel = $('songSel'); sel.innerHTML = '';
+  const add = (s, group) => { const o = document.createElement('option'); o.value = group + '|' + s.name; o.textContent = s.name; sel.appendChild(o); };
+  DEMOS.forEach(s => add(s,'demo'));
+  loadSongs().forEach(s => add(s,'user'));
+  if (selectName) for (const o of sel.options) if (o.value === selectName) sel.value = selectName;
+}
+function currentSong(){
+  const [g, ...n] = $('songSel').value.split('|'); const name = n.join('|');
+  return (g === 'demo' ? DEMOS : loadSongs()).find(s => s.name === name);
+}
+function loadSong(s){
+  if (!s) return;
+  $('notes').value = s.text; $('tempo').value = s.tempo || 80;
+  $('songName').value = s.name.startsWith('ตัวอย่าง') ? '' : s.name;
+  render();
+}
+
+/* ---------- parsing ---------- */
+function parseDur(s){
+  if (!s) return 1;
+  if (s.includes('/')) { const [a,b] = s.split('/').map(Number); return a/b; }
+  return Number(s);
+}
+function parse(text){
+  const out = [], errs = [];
+  for (const tok of text.split(/\s+/)) {
+    if (!tok || tok === '|' || tok === '||') continue;
+    let m = tok.match(/^([A-Ga-g])([#b]?)(-?\d)(?::([\d.\/]+))?$/);
+    if (m) {
+      const L = m[1].toUpperCase(), acc = m[2] === '#' ? 1 : m[2] === 'b' ? -1 : 0, oct = +m[3];
+      const beats = parseDur(m[4]);
+      if (!(beats > 0)) { errs.push(tok); continue; }
+      out.push({midi:(oct+1)*12 + BASE[L] + acc, letter:L, acc, oct, beats});
+      continue;
+    }
+    m = tok.match(/^[rR](?::([\d.\/]+))?$/);
+    if (m) { const beats = parseDur(m[1]); if (beats > 0) { out.push({midi:null, beats}); continue; } }
+    errs.push(tok);
+  }
+  return {notes: out, errs};
+}
+
+/* ---------- ABC generation with auto bars, beaming, ties ---------- */
+const SIZES = [16,12,8,6,4,3,2,1]; // in 16ths
+function abcPitch(n){
+  let s = n.letter;
+  if (n.oct >= 5) { s = s.toLowerCase() + "'".repeat(n.oct - 5); }
+  else { s = s + ','.repeat(4 - n.oct); }
+  return s;
+}
+function toAbc(notes, tempo){
+  let body = '', pos = 0, elem = 0, bar = 0, accState = {};
+  notes.forEach(n => {
+    n.elemStart = elem; n.elemCount = 0;
+    let remaining = Math.max(1, Math.round(n.beats * 4));
+    while (remaining > 0) {
+      const room = 16 - (pos % 16);
+      let chunk = Math.min(remaining, room);
+      while (chunk > 0) {
+        const piece = SIZES.find(z => z <= chunk);
+        if (pos % 4 === 0) body += ' ';
+        if (n.midi === null) body += 'z' + piece;
+        else {
+          const k = n.letter + n.oct; let acc = '';
+          if (n.acc === 1) acc = '^'; else if (n.acc === -1) acc = '_';
+          else if (accState[k]) acc = '=';
+          accState[k] = n.acc;
+          body += acc + abcPitch(n) + piece;
+          n.elemCount++; elem++;
+        }
+        chunk -= piece; remaining -= piece; pos += piece;
+        if (n.midi !== null && remaining > 0) body += '-';
+      }
+      if (pos % 16 === 0) { body += ' |'; bar++; accState = {}; if (bar % 4 === 0) body += '\n'; }
+    }
+  });
+  if (pos % 16 !== 0) body += ' |';
+  body = body.replace(/\|\s*$/, '|]');
+  return `X:1\nM:4/4\nL:1/16\nQ:1/4=${tempo}\nK:C\n${body}\n`;
+}
+
+/* ---------- render ---------- */
+let NOTES = [], ELEMS = [], cur = 0, nOk = 0, nBad = 0;
+function render(){
+  const {notes, errs} = parse($('notes').value);
+  NOTES = notes;
+  const abc = toAbc(NOTES, +$('tempo').value || 80);
+  const w = Math.min($('score').clientWidth || 900, 1060);
+  ABCJS.renderAbc('score', abc, {foregroundColor:'currentColor', staffwidth: Math.max(300, w - 30), responsive:'resize', add_classes:true, paddingleft:0, paddingright:0});
+  ELEMS = [...$('score').querySelectorAll('.abcjs-note')];
+  $('midiMsg').textContent = errs.length ? `อ่านไม่ออก: ${errs.slice(0,5).join(' ')}` : '';
+  restart();
+}
+function setColor(i, color){
+  const n = NOTES[i]; if (!n || n.midi === null) return;
+  for (let k = 0; k < n.elemCount; k++) { const el = ELEMS[n.elemStart + k]; if (el) el.style.color = color; }
+}
+function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+function skipRests(){ while (cur < NOTES.length && NOTES[cur].midi === null) cur++; }
+function restart(){
+  NOTES.forEach((_, i) => setColor(i, ''));
+  cur = 0; nOk = 0; nBad = 0; skipRests(); updateUI();
+}
+function updateUI(){
+  $('nOk').textContent = nOk; $('nBad').textContent = nBad;
+  const total = NOTES.filter(n => n.midi !== null).length;
+  const done = NOTES.slice(0, cur).filter(n => n.midi !== null).length;
+  $('progress').textContent = total ? `${done}/${total}` : '';
+  document.querySelectorAll('.key.hint').forEach(k => k.classList.remove('hint'));
+  if (cur >= NOTES.length) {
+    $('expect').innerHTML = total ? '<span class="ok">จบเพลง 🎉</span>' : '–';
+    return;
+  }
+  const n = NOTES[cur];
+  $('expect').textContent = noteLabel(n.midi);
+  setColor(cur, css('--cur'));
+  const el = ELEMS[n.elemStart];
+  if (el && el.scrollIntoView) el.scrollIntoView({block:'nearest', inline:'center'});
+  if ($('showHint').checked) { const k = keyEls[n.midi]; if (k) k.classList.add('hint'); }
+}
+
+/* ---------- practice input ---------- */
+function onNote(midi){
+  if (recording) { recNoteOn(midi); return; }
+  $('played').textContent = noteLabel(midi);
+  if (cur >= NOTES.length) return;
+  const want = NOTES[cur].midi;
+  const match = $('anyOct').checked ? (midi % 12 === want % 12) : midi === want;
+  if (match) {
+    $('played').className = 'big ok';
+    setColor(cur, css('--ok')); nOk++; cur++; skipRests();
+  } else {
+    $('played').className = 'big bad';
+    nBad++; const i = cur; setColor(i, css('--bad'));
+    setTimeout(() => { if (i === cur) setColor(i, css('--cur')); }, 350);
+  }
+  updateUI();
+}
+
+/* ---------- sound (on-screen piano / hints) ---------- */
+let actx = null;
+function ctx(){ if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)(); return actx; }
+function beep(midi, dur = 0.5, vol = 0.25){
+  const c = ctx(), o = c.createOscillator(), g = c.createGain();
+  o.type = 'triangle'; o.frequency.value = 440 * Math.pow(2, (midi - 69) / 12);
+  g.gain.setValueAtTime(vol, c.currentTime); g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + dur);
+  o.connect(g).connect(c.destination); o.start(); o.stop(c.currentTime + dur);
+}
+function click(accent){ beep(accent ? 96 : 84, 0.05, accent ? 0.4 : 0.2); }
+$('hearBtn').onclick = () => { if (cur < NOTES.length) beep(NOTES[cur].midi, 0.8); };
+
+/* ---------- on-screen piano C3..C6 ---------- */
+const keyEls = {};
+(function buildPiano(){
+  const p = $('piano'), W = 30, BW = 20; let x = 0;
+  for (let m = 48; m <= 84; m++) {
+    const black = [1,3,6,8,10].includes(m % 12);
+    const k = document.createElement('div');
+    k.className = 'key ' + (black ? 'b' : 'w');
+    if (black) { k.style.left = (x - BW/2) + 'px'; k.style.width = BW + 'px'; }
+    else { k.style.left = x + 'px'; k.style.width = W + 'px'; x += W; if (m % 12 === 0) k.innerHTML = `<span class="lbl">C${m/12-1}</span>`; }
+    k.addEventListener('pointerdown', e => { e.preventDefault(); beep(m); flash(m); onNote(m); });
+    p.appendChild(k); keyEls[m] = k;
+  }
+  p.style.width = x + 'px';
+})();
+function flash(m){ const k = keyEls[m]; if (!k) return; k.classList.add('down'); setTimeout(() => k.classList.remove('down'), 180); }
+
+/* ---------- Web MIDI ---------- */
+let midiAccess = null, activeInput = null;
+function pickInput(){
+  if (activeInput) activeInput.onmidimessage = null;
+  activeInput = midiAccess && midiAccess.inputs.get($('midiSel').value);
+  if (activeInput) activeInput.onmidimessage = onMidi;
+}
+function listInputs(){
+  const sel = $('midiSel'), prev = sel.value; sel.innerHTML = '';
+  const ins = [...midiAccess.inputs.values()];
+  if (!ins.length) { sel.innerHTML = '<option value="">ไม่พบอุปกรณ์</option>'; pickInput(); return; }
+  ins.forEach(i => { const o = document.createElement('option'); o.value = i.id; o.textContent = i.name; sel.appendChild(o); });
+  const nek = ins.find(i => /NEK/i.test(i.name));
+  sel.value = ins.some(i => i.id === prev) ? prev : (nek || ins[0]).id;
+  pickInput();
+}
+function onMidi(e){
+  const [s, d1, d2] = e.data, t = s & 0xF0;
+  if (t === 0x90 && d2 > 0) { flash(d1); onNote(d1); }
+  else if (t === 0x80 || (t === 0x90 && d2 === 0)) { if (recording) recNoteOff(d1); }
+}
+$('midiSel').onchange = pickInput;
+if (navigator.requestMIDIAccess) {
+  navigator.requestMIDIAccess().then(a => { midiAccess = a; listInputs(); a.onstatechange = listInputs; })
+    .catch(() => { $('midiMsg').textContent = 'เบราว์เซอร์ไม่อนุญาต MIDI (ใช้คีย์บนจอแทนได้)'; });
+} else {
+  $('midiMsg').textContent = 'เบราว์เซอร์นี้ไม่รองรับ Web MIDI ใช้ Chrome หรือ Edge';
+}
+
+/* ---------- recording from keyboard ---------- */
+let recording = false, rec = [], metroTimer = null;
+function q(beats){ return Math.max(0.25, Math.round(beats * 4) / 4); }
+function recNoteOn(midi){
+  const now = performance.now(), last = rec[rec.length - 1];
+  if (last && now - last.on < 40) { if (midi > last.midi) last.midi = midi; return; } // chord: keep top note
+  rec.push({midi, on: now, off: null}); flash(midi);
+  $('played').textContent = noteLabel(midi); $('played').className = 'big';
+}
+function recNoteOff(midi){
+  for (let i = rec.length - 1; i >= 0; i--) if (rec[i].midi === midi && rec[i].off === null) { rec[i].off = performance.now(); break; }
+}
+function recToText(){
+  const beat = 60000 / (+$('tempo').value || 80), toks = [];
+  rec.forEach((n, i) => {
+    const next = rec[i + 1], off = n.off ?? (next ? next.on : n.on + beat);
+    const name = NAMES[n.midi % 12] + (Math.floor(n.midi / 12) - 1);
+    if (!next) { toks.push(`${name}:${q((off - n.on) / beat)}`); return; }
+    const ioi = q((next.on - n.on) / beat), held = q((off - n.on) / beat);
+    if (ioi - held >= 0.75) { toks.push(`${name}:${held}`, `r:${ioi - held}`); }
+    else toks.push(`${name}:${ioi}`);
+  });
+  return toks.map(t => t.replace(/:1$/, '')).join(' ');
+}
+$('recBtn').onclick = () => {
+  if (!recording) {
+    if (!activeInput) { alert('ยังไม่พบคีย์บอร์ด MIDI'); return; }
+    recording = true; rec = [];
+    $('recBtn').textContent = '■ หยุดอัด'; $('expect').textContent = 'กำลังอัด… เล่นได้เลย';
+    if ($('metro').checked) {
+      let i = 0; const beat = 60000 / (+$('tempo').value || 80);
+      click(true); metroTimer = setInterval(() => click(++i % 4 === 0), beat);
+    }
+  } else {
+    recording = false; clearInterval(metroTimer);
+    $('recBtn').textContent = '● อัดจากคีย์บอร์ด';
+    if (rec.length) {
+      const t = $('notes').value.trim();
+      $('notes').value = (t ? t + '\n' : '') + recToText();
+    }
+    render();
+  }
+};
+
+/* ---------- wiring ---------- */
+$('renderBtn').onclick = render;
+$('startBtn').onclick = restart;
+$('showHint').onchange = updateUI;
+$('songSel').onchange = () => loadSong(currentSong());
+$('saveBtn').onclick = () => {
+  const name = $('songName').value.trim();
+  if (!name) { alert('ใส่ชื่อเพลงก่อน'); return; }
+  const songs = loadSongs().filter(s => s.name !== name);
+  songs.push({name, tempo: +$('tempo').value || 80, text: $('notes').value});
+  storeSongs(songs); fillSongSel('user|' + name);
+};
+$('delBtn').onclick = () => {
+  const [g, ...n] = $('songSel').value.split('|');
+  if (g !== 'user') { alert('เพลงตัวอย่างลบไม่ได้'); return; }
+  const name = n.join('|');
+  if (!confirm(`ลบเพลง "${name}" ?`)) return;
+  storeSongs(loadSongs().filter(s => s.name !== name)); fillSongSel(); loadSong(currentSong());
+};
+let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { const c = cur, a = nOk, b = nBad; render(); cur = c; nOk = a; nBad = b; NOTES.slice(0, c).forEach((_, i) => setColor(i, css('--ok'))); updateUI(); }, 300); });
+
+fillSongSel(); loadSong(currentSong());
+window.__np = {onNote, parse, toAbc, get state(){ return {cur, nOk, nBad, n: NOTES.length, elems: ELEMS.length}; }};
+})();
+</script>
+</body>
+</html>
